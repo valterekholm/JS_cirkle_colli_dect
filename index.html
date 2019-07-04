@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Collision detection</title>
+	<style>
+	* {
+	box-sizing: border-box;
+	}
+	
+	input[type=range]{
+		width: 300px;
+		margin: 0 auto;
+		display: block;
+	}
+	#board{
+		width:500px;
+		height: 500px;
+		margin: 30px auto 20px;
+		border: 1px solid yellow;
+	}
+	#controls{
+		width:300px;
+		height: 100px;
+		margin: 10px auto;
+		display: block;
+		background: #aaa;
+		padding: 5px;
+	}
+	#controls label{
+		width: 100px;
+		display: inline-block;
+	}
+	.ball{
+		border: 2px solid gray;
+		border-radius: 15px;
+		text-align: center;
+	}
+	
+	</style>
+</head>
+<body>
+
+<div id="controls">
+<label for="ball1StartX">Ball 1 start X</label>
+<input type="number" max="300" min="-100" id="ball1StartX" placeholder="ball 1 start x" value="50">
+
+</div>
+
+<div id="board">
+<div id="ball1" class="ball">1</div>
+<div id="ball2" class="ball">2</div>
+</div>
+
+<input type="range" id="time" min="0" max="100" step="1" value="80">
+
+
+<script>
+
+rangeSteps = 0;
+ballRadius = 15;
+
+window.onload = function(){
+	
+	console.log("Welcome");
+	
+	var b1 = document.querySelector("#ball1");
+	var b2 = document.querySelector("#ball2");
+	
+	var ball1 = makeBall(50,50, b1);
+	var ball2 = makeBall(100,50, b2);
+	
+	var range = document.querySelector("#time");
+	
+	var totRange = range.max - range.min;
+	rangeSteps = totRange / range.step;
+	console.log(rangeSteps);
+		
+	initB(ball1, 50, 50);
+	initB(ball2, -50, 50);
+	
+	var settings = {};
+	
+	settings.minT = range.min;
+	settings.maxT = range.max;
+	
+	var board = document.querySelector("#board");
+	initBoard(board, 300, 300);
+	
+	updatePlane2Balls(range, ball1, ball2);
+	
+	range.addEventListener("input", function(){
+		updatePlane2Balls(this, ball1, ball2);
+	});
+	
+	var co1x = document.querySelector("#ball1StartX");
+	co1x.addEventListener("input", function(){
+		var xOff = ball1.getDistX();
+		var yOff = ball1.getDistY();
+		ball1 = makeBall(parseInt(this.value), ball1.starty, ball1.elem);
+		initB(ball1, xOff, yOff);
+		//TODO: get current posx via range value
+		var t = range.value;
+		console.log("t: " + t);
+		//setBallXY(ball1, ball1.stepsX[t], ball1.stepsY[t]);
+		updatePlane2Balls(range, ball1, ball2);
+	});
+}
+
+function updatePlane2Balls(slide, ball1, ball2){
+
+	var t = slide.value;
+
+	setBallXY(ball1, ball1.stepsX[t], ball1.stepsY[t]);
+	setBallXY(ball2, ball2.stepsX[t], ball2.stepsY[t]);
+	
+	//check for collision
+	if(distanceBetweenBalls(ball1, ball2) < 0){
+		signalizeColl();
+	}
+	else{
+		signalizeOff();
+	}
+	
+}
+
+function setBallXY(ball, x, y){
+	console.log("setBallXY: " + x + "," + y);
+	ball.elem.style.left = x + "px";
+	ball.elem.style.top = y + "px";
+}
+
+function initB(ball1, xOff, yOff){
+	console.log(`initB with ${ball1}, ${xOff}, ${yOff}`);
+
+	ball1 = makeBallWithMove(ball1, xOff, yOff);
+	console.log("Initialized ball:");
+	console.log(ball1);
+	
+}
+
+function initBoard(board, width, height){
+	board.style.position = "relative";
+	board.style.width = width + "px";
+	board.style.height = height + "px";
+}
+
+function makeBall(x,y,elem){
+	var b = {};
+	b.startx = x;
+	b.starty = y;
+	elem.style.position = "absolute";
+	elem.style.left = x + "px";
+	elem.style.top = y + "px";
+	elem.style.width = (ballRadius*2) + "px";
+	elem.style.height = (ballRadius*2) + "px";
+	
+	elem.style.padding = (ballRadius/3)+"px";
+	b.elem = elem;
+	return b;
+}
+
+function distanceBetweenBalls(ball1, ball2){
+	var x1 = ball1.getX(), x2 = ball2.getX();
+	var y1 = ball1.getY(), y2 = ball2.getY();
+	
+	var dx = Math.abs(x2-x1);
+	var dy = Math.abs(y2-y1);
+	
+	var d = Math.sqrt((dx*dx)+(dy*dy));
+	return d - ballRadius*2;
+}
+
+function getBallComputedX(range, ball){
+	//todo: get position from value in stepsX
+}
+
+function signalizeColl(){
+	document.body.style.background = "#f55";
+}
+
+function signalizeOff(){
+	document.body.style.background = "white";
+}
+
+function makeBallWithMove(ball, xOff, yOff){
+	var bM = ball;
+	console.log(bM);
+	bM.x2 = bM.startx + xOff;
+	bM.y2 = bM.starty + yOff;
+	
+	bM.stepsX = [];
+	bM.stepsY = [];
+	
+	var distX = Math.abs(bM.x2 - bM.startx);
+	var distY = Math.abs(bM.y2 - bM.starty);//in case of negative value abs makes positive
+	var stepX = distX / rangeSteps;
+	var stepY = distY / rangeSteps;
+	
+	var xIncr = xOff>0 ? 1 : -1;
+	var yIncr = yOff>0 ? 1 : -1;
+	
+	var xWalk = bM.startx;
+	var yWalk = bM.starty;
+	for(var i=0; i<rangeSteps; i++){
+		bM.stepsX.push(xWalk);
+		bM.stepsY.push(yWalk);
+		
+		xWalk += stepX*xIncr;
+		yWalk += stepY*yIncr;
+	}
+	bM.stepsX.push(xWalk);
+	bM.stepsY.push(yWalk);
+	
+	console.log("Filled steps:");
+	console.log(bM.stepsX);
+	console.log(bM.stepsY);
+	
+	bM.getX = function(){
+		var x = parseInt(bM.elem.style.left);
+		return x;
+	}
+	bM.getY = function(){
+		var y = parseInt(bM.elem.style.top);
+		return y;
+	}
+	
+	bM.getDistX = function(){
+		return Math.abs(bM.x2 - bM.startx);
+	}
+	
+	bM.getDistY = function(){
+		return Math.abs(bM.y2 - bM.starty);
+	}
+	
+	bM.xIncr = function(){
+		return bM.x2 > bM.startx;
+	}
+	
+	bM.yIncr = function(){
+		return bM.y2 > bM.starty;
+	}
+	
+	bM.getStepX = function(index){
+		return bM.stepsX[index];
+	}
+	bM.getStepY = function(index){
+		return bM.stepsY[index];
+	}
+	
+	return bM;
+}
+
+
+</script>
+
+</body>
+</html>
